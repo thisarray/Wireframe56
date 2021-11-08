@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>bubblebobble</title>
+  <script src="../../jsgame0.js"></script>
+  <style type="text/css" media="screen">
+body {
+  background-color: white;
+  color: black;
+}
+.hidden {
+  display: none;
+}
+#original {
+  margin-left: 1em;
+}
+  </style>
+</head>
+
+<body>
+<section id="imageLoader" class="hidden">
+  <img class="hidden" src="images/background.png" alt="background" data-name="background">
+  <img class="hidden" src="images/bubble0.png" alt="bubble0" data-name="bubble0">
+  <img class="hidden" src="images/bubble1.png" alt="bubble1" data-name="bubble1">
+  <img class="hidden" src="images/bubble2.png" alt="bubble2" data-name="bubble2">
+  <img class="hidden" src="images/bubble3.png" alt="bubble3" data-name="bubble3">
+  <img class="hidden" src="images/bubble4.png" alt="bubble4" data-name="bubble4">
+  <img class="hidden" src="images/bubble_1.png" alt="bubble_1" data-name="bubble_1">
+  <img class="hidden" src="images/bubl0.png" alt="bubl0" data-name="bubl0">
+  <img class="hidden" src="images/bubl1.png" alt="bubl1" data-name="bubl1">
+  <img class="hidden" src="images/bubl2.png" alt="bubl2" data-name="bubl2">
+  <img class="hidden" src="images/bubl3.png" alt="bubl3" data-name="bubl3">
+  <img class="hidden" src="images/bubr0.png" alt="bubr0" data-name="bubr0">
+  <img class="hidden" src="images/bubr1.png" alt="bubr1" data-name="bubr1">
+  <img class="hidden" src="images/bubr2.png" alt="bubr2" data-name="bubr2">
+  <img class="hidden" src="images/bubr3.png" alt="bubr3" data-name="bubr3">
+  <img class="hidden" src="images/platform11.png" alt="platform11" data-name="platform11">
+</section>
+
+<main>
+<h1>bubblebobble</h1>
+
+<canvas id="screen">
+The game screen appears here if your browser supports the Canvas API.
+</canvas>
+<section id="controls">
+  <button type="button" id="reset">Reset</button>
+  <button type="button" id="pause">Pause</button>
+</section>
+
+<h2>Attribution</h2>
+
+<p><a href="https://wireframe.raspberrypi.com/issues/56">Code an homage to Bubble Bobble, pages 66-67, by Mark Vanstone</a>.</p>
+
+<p>Licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/legalcode">Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported</a>.</p>
+
+<p><a href="https://www.raspberrypi.com/news/code-an-homage-to-bubble-bobble-wireframe-56/">Blog post of Source Code</a>.</p>
+
+<h2>Original Python code</h2>
+
+<pre id="original"><code>
+# Bubble Bobble
+import pgzrun
+import random
+bub = Actor(&#x27;bubr0&#x27;,(400,300))
+bub.direction = &quot;r&quot;
+count = bub.jump = 0
+bub.onground = False
+platformActors = []
+bubbles = []
+for r in range(40):
+    for c in range(20):
+        if c == 0 or c == 19 or r == 0 or r== 39 or ((r == 10 or r == 20 or r == 30) and c != 3  and c != 4 and c != 15  and c != 16):
+            platformActors.append(Actor(&#x27;platform11&#x27;,(50+(c*37),80+(r*12))))
+
+def draw():
+    screen.blit(&quot;background&quot;, (0, 0))
+    drawPlatforms()
+    drawBubbles()
+    bub.draw()
+
+def update():
+    global count
+    if count%20 == 0: bub.image = &quot;bub&quot;+ bub.direction + &quot;0&quot;
+    if keyboard.left:
+        moveBub(-1,0)
+        bub.direction = &quot;l&quot;
+        bub.image = &quot;bubl&quot;+ str(int(count/8)%3)
+    if keyboard.right:
+        moveBub(1,0)
+        bub.direction = &quot;r&quot;
+        bub.image = &quot;bubr&quot;+ str(int(count/8)%3)
+    checkGravity()
+    updateBubbles()
+    count += 1
+
+def on_key_down(key):
+    if key.name == &quot;UP&quot;:
+        if bub.onground == True: bub.jump = 60
+    if key.name == &quot;SPACE&quot;: fireBubble()
+
+def drawPlatforms():
+    for p in range(len(platformActors)): platformActors[p].draw()
+
+def moveBub(x,y):
+    if bub.x+x &lt; 720 and bub.x+x &gt; 80:
+        bub.x += x*2
+        for b in range(len(bubbles)):
+            if bubbles[b].collidepoint((bub.x,bub.y)): bubbles[b].x += x*2
+
+def checkGravity():
+    if bub.jump &gt; 0:
+        if bub.y &gt; 85: bub.y -= 3 + (bub.jump/30)
+        bub.jump -=1
+        if bub.jump &lt;= 0: bub.y = (bub.y // 2) *2
+        for b in range(len(bubbles)):
+            if bubbles[b].collidepoint((bub.x,bub.y)) and bubbles[b].status == 0:
+                bubbles[b].countdown = 10
+                bub.jump = 0
+                bub.y = (bub.y // 2) *2
+    bub.onground = False
+    for p in range(len(platformActors)):
+        if((bub.x &gt; platformActors[p].x-20 and bub.x &lt; platformActors[p].x+20) and bub.y+18 == platformActors[p].y-14): bub.onground = True
+    if bub.onground == False: bub.y += 2
+
+def fireBubble():
+    bub.image = &quot;bub&quot;+ bub.direction+ &quot;3&quot;
+    bubbles.append(Actor(&#x27;bubble4&#x27;,(bub.x,bub.y)))
+    bubbles[len(bubbles)-1].status = 20
+    bubbles[len(bubbles)-1].direction = bub.direction
+    bubbles[len(bubbles)-1].driftx = 0
+    bubbles[len(bubbles)-1].drifty = -0.5
+    bubbles[len(bubbles)-1].countdown = 1000
+
+def drawBubbles():
+    for b in range(len(bubbles)): bubbles[b].draw()
+
+def updateBubbles():
+    for b in range(len(bubbles)):
+        if bubbles[b].status &gt; 0:
+            if bubbles[b].direction == &quot;l&quot;:
+                bubbles[b].pos = checkCollision(bubbles[b],-bubbles[b].status,0)
+            else:
+                bubbles[b].pos = checkCollision(bubbles[b],bubbles[b].status,0)
+            bubbles[b].status -= 1
+        else:
+            bubbles[b].pos = checkCollision(bubbles[b],bubbles[b].driftx,bubbles[b].drifty)
+            if random.randint(0, 500) == 1: bubbles[b].driftx = (random.randint(0, 4)-2)/10
+        if bubbles[b].countdown &gt; 10: bubbles[b].image = &quot;bubble&quot;+str(int(bubbles[b].status/5))
+        else: bubbles[b].image = &quot;bubble-1&quot;
+        bubbles[b].countdown -= 1
+    for b in range(len(bubbles)):
+        if bubbles[b].countdown &lt; 0:
+            bubbles.remove(bubbles[b])
+            break;
+
+def checkCollision(o,xinc,yinc):
+    if o.x+xinc &gt; 720 or o.x +xinc &lt; 80 or o.y+yinc &lt; 90 or o.y+yinc &gt; 550:
+        o.drifty = o.drifty *-1
+        o.driftx = o.driftx *-1
+        return o.pos
+    for b in range(len(bubbles)):
+        if bubbles[b].collidepoint((o.x+xinc,o.y+yinc)) and o != bubbles[b]:
+            bubbles[b].x += xinc
+            bubbles[b].driftx = (random.randint(0, 4)-2)/10
+    return o.x+xinc,o.y+yinc
+
+pgzrun.go()
+</code></pre>
+</main>
+
+<script>
+// Bubble Bobble
+
+var bub, count, platformActors, bubbles;
+
+/*
+ * Return a random integer N such that min <= N < max.
+ */
+function getRandomInteger(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor((Math.random() * (max - min)) + min);
+}
+
+function reset() {
+  bub = new Actor('bubr0');
+  bub.pos = [400, 300];
+  bub.direction = "r";
+  bub.jump = 0;
+  bub.onground = false;
+  count = 0;
+  platformActors = [];
+  bubbles = [];
+  for (let r = 0; r < 40; r++) {
+    for (let c = 0; c < 20; c++) {
+      if ((c === 0) || (c === 19) || (r === 0) || (r === 39) || (((r === 10) || (r === 20) || (r === 30)) && (c !== 3) && (c !== 4) && (c !== 15) && (c !== 16))) {
+        let platform = new Actor('platform11');
+        platform.pos = [50 + (c * 37), 80 + (r * 12)];
+        platformActors.push(platform);
+      }
+    }
+  }
+}
+
+function draw() {
+  screen.blit("background", [0, 0]);
+  drawPlatforms();
+  drawBubbles();
+  bub.draw();
+}
+
+function update() {
+  if ((count % 20) === 0) {
+    bub.name = "bub" + bub.direction + "0";
+  }
+  if (keyboard[keys.LEFT]) {
+    moveBub(-1, 0);
+    bub.direction = "l";
+    bub.name = "bubl" + (Math.trunc(count / 8) % 3);
+  }
+  if (keyboard[keys.RIGHT]) {
+    moveBub(1, 0);
+    bub.direction = "r";
+    bub.name = "bubr" + (Math.trunc(count / 8) % 3);
+  }
+  checkGravity();
+  updateBubbles();
+  count += 1;
+}
+
+function on_key_down(key) {
+  if (keyboard[keys.UP]) {
+    if (bub.onground) {
+      bub.jump = 60;
+    }
+  }
+  if (keyboard[keys.SPACE]) {
+    fireBubble();
+  }
+}
+
+function drawPlatforms() {
+  for (let p of platformActors) {
+    p.draw();
+  }
+}
+
+function moveBub(x, y) {
+  if (((bub.posx + x) < 720) && ((bub.posx + x) > 80)) {
+    bub.posx += x * 2;
+    for (let b of bubbles) {
+      if (b.collidepoint([bub.posx, bub.posy])) {
+        b.posx += x * 2;
+      }
+    }
+  }
+}
+
+function checkGravity() {
+  if (bub.jump > 0) {
+    if (bub.posy > 85) {
+      bub.posy -= 3 + (bub.jump / 30);
+    }
+    bub.jump -= 1;
+    if (bub.jump <= 0) {
+      bub.posy = Math.floor(bub.posy / 2) * 2;
+    }
+    for (let b of bubbles) {
+      if (b.collidepoint([bub.posx, bub.posy]) && (b.status === 0)) {
+        b.countdown = 10;
+        b.jump = 0;
+        bub.posy = Math.floor(bub.posy / 2) * 2;
+      }
+    }
+  }
+  bub.onground = false;
+  for (let p of platformActors) {
+    if (((bub.posx > (p.posx - 20)) && (bub.posx < (p.posx + 20))) && ((bub.posy + 18) === (p.posy - 14))) {
+      bub.onground = true;
+    }
+  }
+  if (!bub.onground) {
+    bub.posy += 2;
+  }
+}
+
+function fireBubble() {
+  bub.name = "bub" + bub.direction + "3";
+  let bubble = new Actor('bubble4');
+  bubble.pos = [bub.posx, bub.posy];
+  bubble.status = 20;
+  bubble.direction = bub.direction;
+  bubble.driftx = 0;
+  bubble.drifty = -0.5;
+  bubble.countdown = 1000;
+  bubbles.push(bubble);
+}
+
+function drawBubbles() {
+  for (let b of bubbles) {
+    b.draw();
+  }
+}
+
+function updateBubbles() {
+  for (let b of bubbles) {
+    if (b.status > 0) {
+      if (b.direction === "l") {
+        b.pos = checkCollision(b, -b.status, 0);
+      }
+      else {
+        b.pos = checkCollision(b, b.status, 0);
+      }
+      b.status -= 1;
+    }
+    else {
+      b.pos = checkCollision(b, b.driftx, b.drifty);
+      if (getRandomInteger(0, 501) === 1) {
+        b.driftx = (getRandomInteger(0, 5) - 2) / 10;
+      }
+    }
+    if (b.countdown > 10) {
+      b.name = "bubble" + Math.trunc(b.status / 5);
+    }
+    else {
+      b.name = "bubble_1";
+    }
+    b.countdown -= 1;
+  }
+  for (let b = bubbles.length - 1; b >= 0; b--) {
+    if (bubbles[b].countdown < 0) {
+      bubbles.splice(b, 1);
+    }
+  }
+}
+
+function checkCollision(o, xinc, yinc) {
+  if (((o.posx + xinc) > 720) || ((o.posx + xinc) < 80) || ((o.posy + yinc) < 90) || ((o.posy + yinc) > 550)) {
+    o.drifty = o.drifty * -1;
+    o.driftx = o.driftx * -1;
+    return o.pos;
+  }
+  for (let b of bubbles) {
+    if (b.collidepoint([o.posx + xinc, o.posy + yinc]) && (o != b)) {
+      b.posx += xinc;
+      b.driftx = (getRandomInteger(0, 5) - 2) / 10;
+    }
+  }
+  return [o.posx + xinc, o.posy + yinc];
+}
+
+window.addEventListener('load', (event) => {
+  images.LOAD('#imageLoader img');
+  reset();
+  screen.set_mode('#screen', '#reset', '#pause');
+});
+</script>
+</body>
+
+</html>
