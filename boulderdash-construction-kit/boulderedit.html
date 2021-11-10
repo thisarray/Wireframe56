@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+
+<html lang="en-US">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>boulderedit</title>
+  <script src="../../jsgame0.js"></script>
+  <style type="text/css" media="screen">
+body {
+  background-color: white;
+  color: black;
+}
+.hidden {
+  display: none;
+}
+#original {
+  margin-left: 1em;
+}
+  </style>
+</head>
+
+<body>
+<section id="imageLoader" class="hidden">
+  <img class="hidden" src="images/blank.png" alt="blank" data-name="blank">
+  <img class="hidden" src="images/gem.png" alt="gem" data-name="gem">
+  <img class="hidden" src="images/load.png" alt="load" data-name="load">
+  <img class="hidden" src="images/rock.png" alt="rock" data-name="rock">
+  <img class="hidden" src="images/rockford0.png" alt="rockford0" data-name="rockford0">
+  <img class="hidden" src="images/rockford1.png" alt="rockford1" data-name="rockford1">
+  <img class="hidden" src="images/rockford_1.png" alt="rockford_1" data-name="rockford_1">
+  <img class="hidden" src="images/save.png" alt="save" data-name="save">
+  <img class="hidden" src="images/soil.png" alt="soil" data-name="soil">
+  <img class="hidden" src="images/wall.png" alt="wall" data-name="wall">
+</section>
+
+<main>
+<h1>boulderedit</h1>
+
+<canvas id="screen">
+The game screen appears here if your browser supports the Canvas API.
+</canvas>
+<section id="controls">
+  <button type="button" id="reset">Reset</button>
+  <button type="button" id="pause">Pause</button>
+</section>
+
+<h2>Map in JSON</h2>
+
+<form id="pickle" name="pickle">
+<textarea id="mymap" name="mymap" cols="100" rows="20">
+</textarea>
+</form>
+
+<h2>Attribution</h2>
+
+<p><a href="https://wireframe.raspberrypi.com/issues/56">Make a Boulder Dash level editor in Python, pages 50-57, by Mark Vanstone</a>.</p>
+
+<p>Licensed under <a href="https://creativecommons.org/licenses/by-nc-sa/3.0/legalcode">Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported</a>.</p>
+
+<h2>Original Python code</h2>
+
+<pre id="original"><code>
+# BoulderDash Editor
+import pgzrun
+import pickle
+
+editorState = True
+editorEnabled = True
+
+if editorState:
+    WIDTH = 1000
+
+gameState = count = 0
+editItem = &quot;blank&quot;
+editorMessage = &quot;&quot;
+editorMessageCount = 0
+
+blockTypes = [
+    Actor(&#x27;blank&#x27;, center=(900, 250)),
+    Actor(&#x27;soil&#x27;, center=(900, 300)),
+    Actor(&#x27;rock&#x27;, center=(900, 350)),
+    Actor(&#x27;gem&#x27;, center=(900, 400)),
+    Actor(&#x27;wall&#x27;, center=(900, 450))
+    ]
+
+loadButton = Actor(&#x27;load&#x27;, center=(850, 580))
+saveButton = Actor(&#x27;save&#x27;, center=(950, 580))
+items = [[] for _ in range(14)]
+gems = collected = 0
+rockford = Actor(&#x27;rockford-1&#x27;, center=(60, 100))
+
+def draw():
+    screen.fill((0,0,0))
+    if gems == 0 and collected &gt; 0: infoText(&quot;YOU COLLECTED ALL THE GEMS!&quot;)
+    else: infoText(&quot;GEMS : &quot;+ str(collected))
+    for r in range(0, 14):
+        for c in range(0, 20):
+            if items[r][c] != &quot;&quot; and items[r][c] != &quot;rockford&quot;:
+                screen.blit(items[r][c], ((c*40), 40+(r*40)))
+    if gameState == 0 or (gameState == 1 and count%4 == 0): rockford.draw()
+    drawEditor()
+
+def update():
+    global count,gems
+    mx = my = 0
+    if count%10 == 0:
+        gems = 0
+        for r in range(13, -1, -1):
+            for c in range(19, -1, -1):
+                if items[r][c] == &quot;gem&quot;:
+                    gems += 1
+                if items[r][c] == &quot;rockford&quot;:
+                    if keyboard.left: mx = -1
+                    if keyboard.right: mx = 1
+                    if keyboard.up: my = -1
+                    if keyboard.down: my = 1
+                if items[r][c] == &quot;rock&quot;: testRock(r,c)
+        rockford.image = &quot;rockford&quot;+str(mx)
+        if gameState == 0 and editorState == False: moveRockford(mx,my)
+    count += 1
+
+def on_mouse_down(pos):
+    global editItem
+    if editorState:
+        c = int(pos[0]/40)
+        r = int((pos[1]-40)/40)
+        if loadButton.collidepoint(pos): loadMap()
+        if saveButton.collidepoint(pos): saveMap()
+        if r &gt; 0 and r &lt; 14 and c &gt; 0 and c &lt; 20:
+            if editItem != &quot;blank&quot;:
+                items[r][c] = editItem
+            else : items[r][c] = &quot;&quot;
+        else:
+            for b in range(0, len(blockTypes)):
+                if blockTypes[b].collidepoint(pos):
+                    editItem = blockTypes[b].image
+
+def on_key_down(key):
+    global editorState, gameState, rockford, collected, gems
+    if key == keys.SPACE and editorEnabled:
+        editorState = not editorState
+    if key == keys.ESCAPE:
+        gems = collected = gameState = 0
+        rockford = Actor(&#x27;rockford-1&#x27;, center=(60, 100))
+        loadMap()
+
+def infoText(t):
+    screen.draw.text(t, center = (400, 20), owidth=0.5, ocolor=(255,255,255), color=(255,0,255) , fontsize=40)
+
+def moveRockford(x,y):
+    global collected
+    rx, ry = int((rockford.x-20)/40), int((rockford.y-40)/40)
+    if items[ry+y][rx+x] != &quot;rock&quot; and items[ry+y][rx+x] != &quot;wall&quot;:
+        if items[ry+y][rx+x] == &quot;gem&quot;: collected +=1
+        items[ry][rx], items[ry+y][rx+x] = &quot;&quot;, &quot;rockford&quot;
+        rockford.pos = (rockford.x + (x*40), rockford.y + (y*40))
+    if items[ry+y][rx+x] == &quot;rock&quot; and y == 0:
+        if items[ry][rx+(x*2)] == &quot;&quot;:
+            items[ry][rx], items[ry][rx+(x*2)], items[ry+y][rx+x] = &quot;&quot;, &quot;rock&quot;, &quot;rockford&quot;
+            rockford.x += x*40
+
+def testRock(r,c):
+    if items[r+1][c] == &quot;&quot;:
+        moveRock(r,c,r+1,c)
+    elif items[r+1][c] == &quot;rock&quot; and items[r+1][c-1] == &quot;&quot; and items[r][c-1] == &quot;&quot;:
+        moveRock(r,c,r+1,c-1)
+    elif items[r+1][c] == &quot;rock&quot; and items[r+1][c+1] == &quot;&quot; and items[r][c+1] == &quot;&quot;:
+        moveRock(r,c,r+1,c+1)
+
+def moveRock(r1,c1,r2,c2):
+    global gameState
+    items[r1][c1], items[r2][c2] = &quot;&quot;, items[r1][c1]
+    if items[r2+1][c2] == &quot;rockford&quot;: gameState = 1
+
+def drawEditor():
+    global editorMessageCount
+    screen.draw.text(&quot;EDITOR&quot;, center = (900, 20), owidth=0.5, ocolor=(255,255,255), color=(0,0,255) , fontsize=40)
+    if editorState: screen.draw.text(&quot;ON&quot;, center = (900, 50), owidth=0.5, ocolor=(255,255,255), color=(255,0,0) , fontsize=40)
+    for b in range(0, len(blockTypes)):
+        blockTypes[b].draw()
+    if editItem != &quot;&quot;:
+        screen.blit(editItem,(880,100))
+    loadButton.draw()
+    saveButton.draw()
+    if editorMessageCount &gt; 0:
+        screen.draw.text(editorMessage, center = (400, 300), owidth=0.5, ocolor=(255,255,255), color=(0,0,255) , fontsize=40)
+        editorMessageCount -= 1
+
+def loadMap():
+    global items, rockford, editorMessage, editorMessageCount
+    try:
+        with open (&#x27;mymap.map&#x27;, &#x27;rb&#x27;) as fp:
+            items = pickle.load(fp)
+        editorMessage = &quot;MAP LOADED&quot;
+        editorMessageCount = 200
+    except IOError:
+        editorMessage = &quot;DEFAULT MAP LOADED&quot;
+        editorMessageCount = 200
+        for r in range(0, 14):
+            for c in range(0, 20):
+                itype = &quot;soil&quot;
+                if(r == 0 or r == 13 or c == 0 or c == 19): itype = &quot;wall&quot;
+                items[r].append(itype)
+        items[1][1] = &quot;rockford&quot;
+
+def saveMap():
+    global editorMessage, editorMessageCount
+    try:
+        with open(&#x27;mymap.map&#x27;, &#x27;wb&#x27;) as fp:
+            pickle.dump(items, fp)
+        editorMessage = &quot;MAP SAVED&quot;
+        editorMessageCount = 200
+    except IOError:
+        editorMessage = &quot;ERROR SAVING MAP&quot;
+        editorMessageCount = 200
+
+loadMap()
+pgzrun.go()
+</code></pre>
+</main>
+
+<script>
+// BoulderDash Editor
+
+WIDTH = 1000;
+
+const form = document.querySelector('#pickle');
+
+var rockford, gameState, count, items, gems, collected, editorState, editItem, editorMessage, editorMessageCount, blockTypes, loadButton, saveButton;
+
+function reset() {
+  blockTypes = [
+    new Actor('blank'),
+    new Actor('soil'),
+    new Actor('rock'),
+    new Actor('gem'),
+    new Actor('wall')
+  ];
+  for (let i = 0; i < blockTypes.length; i++) {
+    blockTypes[i].center = [900, 250 + (i * 50)];
+  }
+
+  loadButton = new Actor('load');
+  loadButton.center = [850, 580];
+  saveButton = new Actor('save');
+  saveButton.center = [950, 580];
+
+  editorState = true;
+  editItem = blockTypes[0].name;
+  editorMessage = "";
+  editorMessageCount = 0;
+
+  rockford = new Actor('rockford_1');
+  rockford.center = [60, 100];
+  gameState = 0;
+  count = 0;
+  items = [];
+  for (let r = 0; r < 14; r++) {
+    items.push([]);
+    for (let c = 0; c < 20; c++) {
+      let itype = "soil";
+      if ((r === 0) || (r === 13) || (c === 0) || (c === 19)) {
+        itype = "wall";
+      }
+      items[r].push(itype);
+    }
+  }
+  items[1][1] = "rockford";
+  gems = 0;
+  collected = 0;
+
+  saveMap();
+  editorMessage = "DEFAULT MAP LOADED";
+}
+
+function draw() {
+  screen.fill([0, 0, 0]);
+  if ((gems === 0) && (collected > 0)) {
+    infoText("YOU COLLECTED ALL THE GEMS!");
+  }
+  else {
+    infoText("GEMS : " + collected);
+  }
+  for (let r = 0; r < 14; r++) {
+    for (let c = 0; c < 20; c++) {
+      if ((items[r][c] !== "") && (items[r][c] !== "rockford")) {
+        screen.blit(items[r][c], [c * 40, 40 + (r * 40)]);
+      }
+    }
+  }
+  if ((gameState === 0) || ((gameState === 1) && ((count % 4) === 0))) {
+    rockford.draw();
+  }
+  drawEditor();
+}
+
+function update() {
+  let mx = 0,
+      my = 0;
+  if ((count % 10) === 0) {
+    gems = 0;
+    for (let r = 13; r > -1; r--) {
+      for (let c = 19; c > -1; c--) {
+        if (items[r][c] === "gem") {
+          gems += 1;
+        }
+        if (items[r][c] === "rockford") {
+          if (keyboard[keys.LEFT]) {
+            mx = -1;
+          }
+          if (keyboard[keys.RIGHT]) {
+            mx = 1;
+          }
+          if (keyboard[keys.UP]) {
+            my = -1;
+          }
+          if (keyboard[keys.DOWN]) {
+            my = 1;
+          }
+        }
+        if (items[r][c] === "rock") {
+          testRock(r, c);
+        }
+      }
+    }
+    if (mx < 0) {
+      rockford.name = "rockford_" + Math.abs(mx);
+    }
+    else {
+      rockford.name = "rockford" + mx;
+    }
+    if ((gameState === 0) && (!editorState)) {
+      moveRockford(mx, my);
+    }
+  }
+  count += 1;
+}
+
+function on_mouse_down(pos) {
+  if (editorState) {
+    let c = Math.trunc(pos[0] / 40),
+        r = Math.trunc((pos[1] - 40) / 40);
+    if (loadButton.collidepoint(pos)) {
+      loadMap();
+    }
+    if (saveButton.collidepoint(pos)) {
+      saveMap();
+    }
+    if ((r > 0) && (r < 14) && (c > 0) && (c < 20)) {
+      if (editItem !== blockTypes[0].name) {
+        items[r][c] = editItem;
+      }
+      else {
+        items[r][c] = "";
+      }
+    }
+    else {
+      for (let b of blockTypes) {
+        if (b.collidepoint(pos)) {
+          editItem = b.name;
+        }
+      }
+    }
+  }
+}
+
+function on_key_down(key) {
+  if (key === keys.SPACE) {
+    editorState = !editorState;
+  }
+  if (key === keys.ESCAPE) {
+    reset();
+  }
+}
+
+function infoText(t) {
+  screen.draw.text(t, {
+    center: [400, 20],
+    owidth: 0.5,
+    ocolor: [255, 255, 255],
+    color: [255, 0, 255],
+    fontsize: 40
+  });
+}
+
+function moveRockford(x, y) {
+  let rx = Math.trunc((rockford.posx - 20) / 40),
+      ry = Math.trunc((rockford.posy - 40) / 40);
+  if ((items[ry+y][rx+x] !== "rock") && (items[ry+y][rx+x] !== "wall")) {
+    if (items[ry+y][rx+x] === "gem") {
+      collected += 1;
+    }
+    items[ry][rx] = "";
+    items[ry+y][rx+x] = "rockford";
+    rockford.pos = [rockford.posx + (x * 40), rockford.posy + (y * 40)];
+  }
+  if ((items[ry+y][rx+x] === "rock") && (y === 0)) {
+    if (items[ry][rx+(x*2)] === "") {
+      items[ry][rx] = "";
+      items[ry][rx+(x*2)] = "rock";
+      items[ry+y][rx+x] = "rockford";
+      rockford.posx += x * 40;
+    }
+  }
+}
+
+function testRock(r, c) {
+  if (items[r+1][c] === "") {
+    moveRock(r, c, r + 1, c);
+  }
+  else if ((items[r+1][c] === "rock") && (items[r+1][c-1] === "") && (items[r][c-1] === "")) {
+    moveRock(r, c, r + 1, c - 1);
+  }
+  else if ((items[r+1][c] === "rock") && (items[r+1][c+1] === "") && (items[r][c+1] === "")) {
+    moveRock(r, c, r + 1, c + 1);
+  }
+}
+
+function moveRock(r1, c1, r2, c2) {
+  let temp = items[r1][c1];
+  items[r1][c1] = "";
+  items[r2][c2] = temp;
+  if (items[r2+1][c2] === "rockford") {
+    gameState = 1;
+  }
+}
+
+function drawEditor() {
+  screen.draw.text("EDITOR", {
+    center: [900, 20],
+    owidth: 0.5,
+    ocolor: [255, 255, 255],
+    color: [0, 0, 255],
+    fontsize: 40
+  });
+  if (editorState) {
+    screen.draw.text("ON", {
+      center: [900, 50],
+      owidth: 0.5,
+      ocolor: [255, 255, 255],
+      color: [255, 0, 0],
+      fontsize: 40
+    });
+  }
+  for (let b of blockTypes) {
+    b.draw();
+  }
+  if (editItem !== "") {
+    screen.blit(editItem, [880, 100]);
+  }
+  loadButton.draw();
+  saveButton.draw();
+  if (editorMessageCount > 0) {
+    screen.draw.text(editorMessage, {
+      center: [400, 300],
+      owidth: 0.5,
+      ocolor: [255, 255, 255],
+      color: [0, 0, 255],
+      fontsize: 40
+    });
+    editorMessageCount -= 1;
+  }
+}
+
+/*
+ * More aggressive input checks should be added here.
+ */
+function loadMap() {
+  items = JSON.parse(form.mymap.value);
+
+  // Limit the map to 14 rows by 20 columns
+  items = items.slice(0, 14);
+  for (let r = 0; r < 14; r++) {
+    items[r] = items[r].slice(0, 20);
+  }
+
+  editorMessage = "MAP LOADED";
+  editorMessageCount = 200;
+}
+
+function saveMap() {
+  form.mymap.value = JSON.stringify(items).split('],[').join('],\n[');
+  editorMessage = "MAP SAVED";
+  editorMessageCount = 200;
+}
+
+window.addEventListener('load', (event) => {
+  images.LOAD('#imageLoader img');
+  reset();
+  screen.set_mode('#screen', '#reset', '#pause');
+});
+</script>
+</body>
+
+</html>
