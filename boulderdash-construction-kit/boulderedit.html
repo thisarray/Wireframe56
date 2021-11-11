@@ -270,8 +270,14 @@ function reset() {
   gems = 0;
   collected = 0;
 
-  saveMap();
-  editorMessage = "DEFAULT MAP LOADED";
+  if (form.mymap.value.length <= 0) {
+    // If the map textarea is empty, then populate it with the default map
+    saveMap();
+    editorMessage = "DEFAULT MAP LOADED";
+  }
+  else {
+    loadMap();
+  }
 }
 
 function draw() {
